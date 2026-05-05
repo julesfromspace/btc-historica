@@ -1,0 +1,524 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background: #000;
+  color: #e6e6e6;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+#container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  padding: 24px 28px 16px;
+  gap: 16px;
+  /* When the sidepanel is open, content shifts right so the chart isn't
+     covered. Same timing/curve as the sidepanel slide-in for a unified
+     animation. */
+  transition: padding-left 150ms ease-out;
+}
+
+body.sidepanel-open #container {
+  padding-left: calc(340px + 28px);
+}
+
+/* Top-left toggle is only shown when the sidepanel is closed. While it's
+   open, the panel itself (and its × button) is the way to close it. */
+body.sidepanel-open .icon-btn-tl {
+  display: none;
+}
+
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  min-height: 28px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.brand .dot {
+  width: 7px;
+  height: 7px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.brand .title {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  color: #fff;
+}
+
+.legend .sep {
+  color: #333;
+}
+
+.hint {
+  font-size: 11px;
+  line-height: 1.5rem;
+  color: #555;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#chart-wrap {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 0;
+  /* border: 1px solid #111; */
+  border-radius: 2px;
+  overflow: hidden;
+  background: #000;
+}
+
+#chart {
+  position: absolute;
+  inset: 0;
+}
+
+#event-overlay {
+  position: absolute;
+  left: 0;
+  bottom: 80px;
+  pointer-events: none;
+  color: #fff;
+  width: 560px;
+  max-width: 560px;
+  z-index: 10;
+  transition: opacity 220ms ease, left 60ms linear;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
+}
+
+#event-overlay.hidden {
+  opacity: 0;
+}
+
+.event-date {
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.event-title {
+  font-size: 32px;
+  line-height: 1.25;
+  font-weight: 500;
+  color: #fff;
+  /* Clamp to max 3 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+#price-label {
+  position: absolute;
+  right: 0;
+  top: 0;
+  transform: translateY(-50%);
+  background: #ffffff;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 8px;
+  pointer-events: none;
+  z-index: 11;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px #000;
+  transition: opacity 80ms ease;
+}
+
+#price-label.hidden {
+  opacity: 0;
+}
+
+#date-label {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  background: #ffffff;
+  color: #000000;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 8px;
+  pointer-events: none;
+  z-index: 11;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px #000;
+  transition: opacity 80ms ease;
+}
+
+#date-label.hidden {
+  opacity: 0;
+}
+
+/* Top-right chart-type toggle */
+.chart-toggle {
+  position: fixed;
+  top: 22px;
+  right: 28px;
+  display: flex;
+  gap: 4px;
+  z-index: 30;
+}
+
+.toggle-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 2px;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.toggle-btn:hover {
+  border-color: #555;
+}
+
+.toggle-btn.selected {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+.toggle-btn svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* Centered hint overlay shown until user hovers an event */
+.hint-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #888;
+  pointer-events: none;
+  z-index: 5;
+  text-align: center;
+  white-space: nowrap;
+  transition: opacity 400ms ease;
+}
+
+.hint-overlay.fade {
+  opacity: 0;
+}
+
+body.sidepanel-open .hint-overlay {
+  left: calc(50% + 170px);
+}
+
+/* Top-left sidepanel toggle */
+.icon-btn-tl {
+  position: fixed;
+  top: 22px;
+  left: 28px;
+  z-index: 30;
+}
+
+/* Slide-in left sidepanel */
+.sidepanel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 340px;
+  max-width: 86vw;
+  height: 100vh;
+  background: #0a0a0a;
+  border-right: 1px solid #1a1a1a;
+  transform: translateX(-100%);
+  /* Must match #container's padding-left transition exactly so the chart
+     resize and the panel slide stay in lockstep. */
+  transition: transform 150ms ease-out;
+  z-index: 40;
+  color: #e6e6e6;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidepanel.open {
+  transform: translateX(0);
+}
+
+.sidepanel-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid #181818;
+  margin-top: 50px;
+}
+
+.sidepanel-title {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.sidepanel-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: color 120ms ease;
+}
+
+.sidepanel-close:hover {
+  color: #fff;
+}
+
+.suggestion-list-wrap {
+  flex: 1 1 auto;
+  position: relative;
+  overflow-y: auto;
+}
+
+.suggestion-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.suggestion-item {
+  padding: 14px 24px;
+  border-bottom: 1px solid #181818;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.suggestion-text {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #e6e6e6;
+  word-break: break-word;
+}
+
+.suggestion-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vote-btn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #888;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  border-radius: 2px;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  padding: 0;
+}
+
+.vote-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: #555;
+}
+
+.vote-btn:disabled {
+  cursor: default;
+}
+
+.vote-btn.voted-up {
+  color: #4caf50;
+  border-color: #4caf50;
+}
+
+.vote-btn.voted-down {
+  color: #e53935;
+  border-color: #e53935;
+}
+
+.suggestion-score {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #aaa;
+  min-width: 22px;
+  text-align: center;
+}
+
+.suggest-form {
+  flex: 0 0 auto;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #181818;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.suggest-input {
+  flex: 1;
+  min-width: 0;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  color: #fff;
+  height: 48px;
+  padding: 12px 12px;
+  font-size: 16px;
+  font-family: inherit;
+  outline: none;
+  border-radius: 2px;
+  transition: border-color 120ms ease;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+  min-height: 44px;
+}
+
+.suggest-input:focus {
+  border-color: #555;
+}
+
+.suggest-input::placeholder {
+  color: #555;
+}
+
+.suggest-submit {
+  background: #ffffff;
+  color: #000;
+  height: 48px;
+  border: none;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 2px;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+
+.suggest-submit:hover:not(:disabled) {
+  background: #ddd;
+}
+
+.suggest-submit:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-align: center;
+  pointer-events: none;
+  line-height: 1.7;
+}
+
+.empty-state.hidden {
+  display: none;
+}
+
+#hover-h-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  border-top: 1px dotted #5a5a5a;
+  pointer-events: none;
+  z-index: 8;
+  transform: translateY(-0.5px);
+  transition: opacity 80ms ease;
+}
+
+#hover-h-line.hidden {
+  opacity: 0;
+}
+
+#event-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.event-dot {
+  position: absolute;
+  background: rgba(255, 255, 255, .65);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
+  /* width / height are set in JS to match the candle width */
+}
+
+.event-dot.halving {
+  background: rgba(247, 147, 26, .75);
+  box-shadow: 0 0 8px rgba(247, 147, 26, 0.65);
+}
+
+#footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #555;
+  letter-spacing: 1px;
+}
+
+#hover-readout {
+  font-variant-numeric: tabular-nums;
+  color: #888;
+}
+
+/* Override TradingView crosshair styling — handled in JS, but add subtle touches */
