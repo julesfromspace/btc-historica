@@ -20,16 +20,20 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  padding: 24px 28px 16px;
-  gap: 16px;
+  padding: 24px 24px;
+  gap: 24px;
   /* When the sidepanel is open, content shifts right so the chart isn't
      covered. Same timing/curve as the sidepanel slide-in for a unified
      animation. */
   transition: padding-left 150ms ease-out;
 }
 
+/* When the sidepanel is open the chart shrinks rather than being
+   overlaid. The sidepanel sits 16px from the viewport's left edge and is
+   340px wide; we add a 16px gap between it and the chart, so the chart's
+   left edge needs to start at 16 + 340 + 16 = 372px. */
 body.sidepanel-open #container {
-  padding-left: calc(340px + 28px);
+  padding-left: calc(340px + 32px);
 }
 
 /* Top-left toggle is only shown when the sidepanel is closed. While it's
@@ -42,19 +46,24 @@ body.sidepanel-open .icon-btn-tl {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
   flex-wrap: wrap;
-  min-height: 28px;
+  height: 48px;
 }
 
 .brand {
   display: flex;
-  align-items: center;
+  /* Align children on their text baseline so the smaller "About" link sits
+     on the same baseline as the BTC HISTORICA wordmark. The dot has no
+     text baseline of its own — `align-self: center` (below) re-centers it
+     against the wordmark. */
+  align-items: baseline;
   gap: 10px;
   position: fixed;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Center vertically on the 48px header (which sits inside #container's
+     24px top padding → vertical midline at y = 24 + 24 = 48px). */
+  top: 48px;
+  left: 28px;
+  transform: translateY(-50%);
   z-index: 10;
   pointer-events: none;
 }
@@ -65,6 +74,9 @@ body.sidepanel-open .icon-btn-tl {
   background: #fff;
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  /* Override the parent's baseline alignment so the dot stays vertically
+     centered against the wordmark instead of dropping to the baseline. */
+  align-self: center;
 }
 
 .brand .title {
@@ -72,6 +84,111 @@ body.sidepanel-open .icon-btn-tl {
   font-weight: 600;
   letter-spacing: 4px;
   color: #fff;
+}
+
+/* The brand row is `pointer-events: none` so the dot + title don't
+   intercept clicks; the About link opts back into pointer events. */
+.brand-link {
+  margin-left: 16px;
+  color: #555;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 120ms ease;
+}
+
+.brand-link:hover {
+  color: #cfcfcf;
+}
+
+/* Header action group (Start/Pause/Resume + Reload) — pinned to the
+   viewport center so its position is independent of #container's
+   padding-left shift when the sidepanel opens. */
+.header-actions {
+  position: fixed;
+  top: 48px;
+  /* see .brand for vertical midline math */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 30;
+}
+
+.primary-btn,
+.tertiary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 16px 0 12px;
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.primary-btn svg,
+.tertiary-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.primary-btn {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+}
+
+.primary-btn:hover {
+  background: #e6e6e6;
+  border-color: #e6e6e6;
+}
+
+.primary-btn:active {
+  background: #cfcfcf;
+  border-color: #cfcfcf;
+}
+
+/* Ghost button — no visible border, transparent background, picks up a
+   subtle white wash on hover/press. */
+.tertiary-btn {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.tertiary-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tertiary-btn:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.primary-btn .icon-pause {
+  display: none;
+}
+
+.primary-btn.playing .icon-play {
+  display: none;
+}
+
+.primary-btn.playing .icon-pause {
+  display: block;
 }
 
 .legend .sep {
@@ -94,6 +211,11 @@ body.sidepanel-open .icon-btn-tl {
   border-radius: 2px;
   overflow: hidden;
   background: #000;
+  /* Force a stacking context so the LightweightCharts canvas (which is
+     promoted to its own compositor layer) and #event-overlay paint into
+     the same layer — required for backdrop-filter on the overlay to
+     sample the chart pixels behind it. */
+  isolation: isolate;
 }
 
 #chart {
@@ -101,17 +223,76 @@ body.sidepanel-open .icon-btn-tl {
   inset: 0;
 }
 
+/* During playback the crosshair is driven programmatically — block mouse
+   hover on the chart canvas so a stray cursor doesn't override it. */
+body.playback #chart {
+  pointer-events: none;
+}
+
+/* Mask that hides the future portion of the chart line during playback.
+   JS sets `left`/`right` to cover everything from the current playback
+   x-coordinate to the right edge of the plot area (price-axis numbers
+   stay visible). The chart's full data is always loaded so the price
+   scale stays at the page-load range. */
+#playback-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 7;
+}
+
+#playback-mask.hidden {
+  display: none;
+}
+
+/* Genesis-block "explosion": a small radial burst of 8 white lines drawn
+   on top of the genesis dot when playback starts. JS positions the
+   container at the dot's coordinates; Motion animates each line from a
+   collapsed scaleX(0) outwards to scaleX(1) while fading. */
+.explosion {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.explosion.hidden {
+  display: none;
+}
+
+.explosion-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 1.25px;
+  background: #ffffff;
+  /* Anchor the line so its inner end is offset from the burst origin —
+     gives a short empty gap at the center, like sparks flying outward. */
+  transform-origin: 0 50%;
+  transform: rotate(var(--angle)) translateX(2px);
+  opacity: 0;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
+}
+
 #event-overlay {
   position: absolute;
   left: 0;
   bottom: 80px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   pointer-events: none;
-  color: #fff;
-  width: 560px;
-  max-width: 560px;
+  /* Hug content horizontally; max-width is set inline from JS (560px) so
+     the overlay's right edge sits flush with the 24px gap to the hover
+     line when flipped, and the title text never leaves a trailing gap. */
+  width: max-content;
   z-index: 10;
   transition: opacity 220ms ease, left 60ms linear;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.95);
 }
 
 #event-overlay.hidden {
@@ -127,10 +308,10 @@ body.sidepanel-open .icon-btn-tl {
 }
 
 .event-title {
-  font-size: 32px;
+  font-size: 48px;
   line-height: 1.25;
   font-weight: 500;
-  color: #fff;
+  color: #ffffff;
   /* Clamp to max 3 lines */
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -149,6 +330,11 @@ body.sidepanel-open .icon-btn-tl {
   font-weight: 600;
   letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
+  /* Padding-left matches lightweight-charts' internal padding for the
+     y-axis tick labels (border + tick mark + small text margin) so the
+     label's text left edge sits in the exact same column as the y-axis
+     numbers when JS positions the box at the price-scale td's left
+     edge. */
   padding: 3px 8px;
   pointer-events: none;
   z-index: 11;
@@ -187,8 +373,10 @@ body.sidepanel-open .icon-btn-tl {
 /* Top-right chart-type toggle */
 .chart-toggle {
   position: fixed;
-  top: 22px;
+  /* Centered on the header's vertical midline (see .brand). */
+  top: 48px;
   right: 28px;
+  transform: translateY(-50%);
   display: flex;
   gap: 4px;
   z-index: 30;
@@ -250,32 +438,54 @@ body.sidepanel-open .hint-overlay {
   left: calc(50% + 170px);
 }
 
-/* Top-left sidepanel toggle */
+/* Sidepanel toggle — anchored inside the canvas at the top-left corner. */
 .icon-btn-tl {
-  position: fixed;
-  top: 22px;
-  left: 28px;
+  position: absolute;
+  top: 16px;
+  left: 16px;
   z-index: 30;
 }
 
-/* Slide-in left sidepanel */
+/* Floating left sidepanel — overlays the chart, doesn't resize it.
+   Anchored to match the chart's bounds: 16px from the left edge of the
+   viewport, top/bottom aligned with #chart-wrap (header height +
+   #container's top/bottom padding). Frosted-glass backdrop keeps the
+   chart faintly visible behind the panel. */
 .sidepanel {
   position: fixed;
-  top: 0;
-  left: 0;
+  /* Top/bottom match #chart-wrap so the panel is the same height as the
+     chart. #container has 24px top + bottom padding and a 24px gap; the
+     header is 48px → chart-wrap starts at 24+48+24 = 96px and ends 24px
+     from the viewport bottom. */
+  top: 96px;
+  bottom: 24px;
+  left: 16px;
   width: 340px;
-  max-width: 86vw;
-  height: 100vh;
-  background: #0a0a0a;
-  border-right: 1px solid #1a1a1a;
-  transform: translateX(-100%);
-  /* Must match #container's padding-left transition exactly so the chart
-     resize and the panel slide stay in lockstep. */
+  max-width: calc(100vw - 32px);
+  background: transparent;
+  border: 1px solid #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+  transform: translateX(calc(-100% - 16px));
+  /* Same timing/curve as the previous push-aside layout for consistency. */
   transition: transform 150ms ease-out;
   z-index: 40;
   color: #e6e6e6;
   display: flex;
   flex-direction: column;
+}
+
+/* Backdrop layer is a pseudo-element so the parent's `transform` (used for
+   the slide animation) doesn't suppress backdrop-filter rendering — a known
+   Chromium quirk when both live on the same element. */
+.sidepanel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.5);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  z-index: -1;
 }
 
 .sidepanel.open {
@@ -287,30 +497,42 @@ body.sidepanel-open .hint-overlay {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 24px 16px;
+  padding: 16px;
   border-bottom: 1px solid #181818;
-  margin-top: 50px;
 }
 
 .sidepanel-title {
-  font-size: 10px;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 3px;
   color: #888;
   text-transform: uppercase;
 }
 
 .sidepanel-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
+  border-radius: 2px;
   color: #888;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  padding: 0 6px;
-  transition: color 120ms ease;
+  padding: 0;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .sidepanel-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.sidepanel-close:active {
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
 }
 
@@ -318,6 +540,25 @@ body.sidepanel-open .hint-overlay {
   flex: 1 1 auto;
   position: relative;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a transparent;
+}
+
+.suggestion-list-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+
+.suggestion-list-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.suggestion-list-wrap::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 2px;
+}
+
+.suggestion-list-wrap::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .suggestion-list {
@@ -393,7 +634,7 @@ body.sidepanel-open .hint-overlay {
 
 .suggest-form {
   flex: 0 0 auto;
-  padding: 14px 20px 18px;
+  padding: 24px 20px;
   border-top: 1px solid #181818;
   display: flex;
   align-items: flex-end;
@@ -475,9 +716,14 @@ body.sidepanel-open .hint-overlay {
   left: 0;
   right: 0;
   top: 0;
-  height: 0;
-  border-top: 1px dotted #5a5a5a;
+  height: 1px;
+  /* Dashed pattern: 5px dash + 5px gap = 10px stride. */
+  background-image: linear-gradient(to right, #5a5a5a 50%, transparent 50%);
+  background-size: 10px 1px;
+  background-repeat: repeat-x;
   pointer-events: none;
+  /* Above the playback mask (z-index 7) so the dotted price line stays
+     visible across the chart during playback. */
   z-index: 8;
   transform: translateY(-0.5px);
   transition: opacity 80ms ease;
@@ -519,6 +765,103 @@ body.sidepanel-open .hint-overlay {
 #hover-readout {
   font-variant-numeric: tabular-nums;
   color: #888;
+}
+
+/* About modal — white card on a dark scrim, soft white outer glow. */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
+}
+
+.modal-content {
+  position: relative;
+  background: #ffffff;
+  color: #000000;
+  border-radius: 4px;
+  min-width: 480px;
+  width: 560px;
+  padding: 24px 28px;
+  /* Soft white blurred glow around the card. */
+  box-shadow: 0 0 32px 0 rgba(255, 255, 255, 0.18);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.modal-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+.modal-body {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333333;
+}
+
+.modal-credit {
+  font-size: 13px;
+  font-weight: 700;
+  color: #000000;
+}
+
+/* Same shape + behavior as the sidepanel close button, but tuned for a
+   white background (dark icon, dark hover/press wash). */
+.modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  color: #888;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000;
+}
+
+.modal-close:active {
+  background: rgba(0, 0, 0, 0.14);
+  color: #000;
 }
 
 /* Override TradingView crosshair styling — handled in JS, but add subtle touches */

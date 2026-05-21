@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# Local screenshots used during development
+screenshots/

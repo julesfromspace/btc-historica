@@ -1,7 +1,19 @@
 // Approximate monthly closing prices for BTC/USD (USD per BTC).
 // Sourced from public historical price data; values are approximate
 // month-end closes used to drive a monthly candlestick chart.
+// 2008-08 → 2010-06 entries are nominal placeholders for the pre-Mt.Gox
+// era when no public market price existed — they exist so pre-launch
+// events (whitepaper, genesis block, Pizza Day, etc.) have a candle to
+// anchor a dot to on the timeline.
 const BTC_MONTHLY_CLOSES = [
+  ["2008-08-01", 0.01],   ["2008-09-01", 0.01],   ["2008-10-01", 0.01],
+  ["2008-11-01", 0.01],   ["2008-12-01", 0.01],
+  ["2009-01-01", 0.01],   ["2009-02-01", 0.01],   ["2009-03-01", 0.01],
+  ["2009-04-01", 0.01],   ["2009-05-01", 0.01],   ["2009-06-01", 0.01],
+  ["2009-07-01", 0.01],   ["2009-08-01", 0.01],   ["2009-09-01", 0.01],
+  ["2009-10-01", 0.01],   ["2009-11-01", 0.01],   ["2009-12-01", 0.01],
+  ["2010-01-01", 0.015],  ["2010-02-01", 0.02],   ["2010-03-01", 0.03],
+  ["2010-04-01", 0.03],   ["2010-05-01", 0.05],   ["2010-06-01", 0.07],
   ["2010-07-01", 0.08],   ["2010-08-01", 0.07],   ["2010-09-01", 0.06],
   ["2010-10-01", 0.20],   ["2010-11-01", 0.27],   ["2010-12-01", 0.30],
   ["2011-01-01", 0.34],   ["2011-02-01", 0.95],   ["2011-03-01", 0.79],
@@ -97,36 +109,59 @@ const BTC_DATA = (() => {
 })();
 
 // Major historical events. Titles are short — clamped to 3 lines on display.
+// Starter set hand-derived from Wikipedia's "History of bitcoin" article
+// (https://en.wikipedia.org/wiki/History_of_bitcoin, CC BY-SA 4.0). Halving
+// dates are exact block-time dates; other dates use the day of the event
+// where known and the first of the month otherwise.
 const EVENTS = [
-  { date: "2010-07-01", title: "Mt. Gox Bitcoin exchange launches" },
-  { date: "2010-12-01", title: "Satoshi Nakamoto goes silent, never to post again" },
-  { date: "2011-06-01", title: "Mt. Gox suffers its first major hack" },
-  { date: "2012-11-01", title: "1st Halving (25 Bitcoin block reward)", halving: true },
+  { date: "2008-08-18", title: "bitcoin.org domain registered anonymously" },
+  { date: "2008-10-31", title: "Satoshi Nakamoto publishes the Bitcoin whitepaper" },
+  { date: "2009-01-03", title: "Bitcoin network launches with the genesis block" },
+  { date: "2009-01-09", title: "First open-source Bitcoin client released" },
+  { date: "2009-01-12", title: "First Bitcoin transaction: Satoshi to Hal Finney" },
+  { date: "2010-05-22", title: "Bitcoin Pizza Day — 10,000 BTC for two pizzas" },
+  { date: "2010-07-17", title: "Mt. Gox Bitcoin exchange launches" },
+  { date: "2010-08-15", title: "Value-overflow exploit fixed via emergency soft fork" },
+  { date: "2010-12-12", title: "Satoshi Nakamoto posts publicly for the last time" },
+  { date: "2011-06-01", title: "WikiLeaks begins accepting Bitcoin donations" },
+  { date: "2011-06-19", title: "Mt. Gox hack briefly drops the price to one cent" },
+  { date: "2012-09-27", title: "Bitcoin Foundation is founded" },
+  { date: "2012-11-28", title: "1st Halving (50 → 25 BTC block reward)", halving: true },
+  { date: "2013-03-12", title: "Accidental hard fork splits the chain for six hours" },
   { date: "2013-04-01", title: "Bitcoin crosses $100 for the first time" },
-  { date: "2013-11-01", title: "Bitcoin briefly tops $1,000 amid retail mania" },
-  { date: "2014-02-01", title: "Mt. Gox collapses with 850,000 BTC missing" },
-  { date: "2016-07-01", title: "2nd Halving (12.5 Bitcoin block reward)", halving: true },
+  { date: "2013-10-02", title: "FBI seizes Silk Road and ~26,000 BTC" },
+  { date: "2013-11-28", title: "Bitcoin briefly tops $1,000 amid retail mania" },
+  { date: "2013-12-05", title: "China bans financial institutions from handling Bitcoin" },
+  { date: "2014-02-28", title: "Mt. Gox collapses with ~850,000 BTC missing" },
+  { date: "2014-12-11", title: "Microsoft begins accepting Bitcoin for digital goods" },
+  { date: "2015-01-04", title: "Bitstamp hacked, ~19,000 BTC stolen" },
+  { date: "2016-07-09", title: "2nd Halving (25 → 12.5 BTC block reward)", halving: true },
+  { date: "2016-08-02", title: "Bitfinex hacked, ~120,000 BTC stolen" },
+  { date: "2017-04-01", title: "Japan recognizes Bitcoin as a legal payment method" },
   { date: "2017-08-01", title: "SegWit activates and Bitcoin Cash forks off" },
-  { date: "2017-12-01", title: "Bitcoin nears $20,000 in the first major retail bubble" },
-  { date: "2018-12-01", title: "Bear market bottoms near $3,200" },
-  { date: "2019-06-01", title: "Facebook unveils Libra, drawing global regulator scrutiny" },
-  { date: "2020-03-01", title: "WHO declares COVID-19 a worldwide pandemic" },
-  { date: "2020-05-01", title: "3rd Halving (6.25 Bitcoin block reward)", halving: true },
-  { date: "2020-08-01", title: "MicroStrategy announces $250M Bitcoin treasury allocation" },
-  { date: "2020-10-01", title: "PayPal lets US users buy and hold cryptocurrencies" },
-  { date: "2021-02-01", title: "Tesla discloses a $1.5B Bitcoin purchase" },
-  { date: "2021-04-01", title: "Coinbase IPOs on Nasdaq as BTC tags new highs" },
-  { date: "2021-05-01", title: "China bans Bitcoin mining, triggering a crash" },
-  { date: "2021-09-01", title: "El Salvador adopts Bitcoin as legal tender" },
-  { date: "2021-11-01", title: "Bitcoin reaches its all-time high near $69,000" },
-  { date: "2022-05-01", title: "Terra/Luna stablecoin ecosystem collapses overnight" },
-  { date: "2022-06-01", title: "Celsius freezes withdrawals; Three Arrows Capital fails" },
-  { date: "2022-11-01", title: "FTX implodes and Sam Bankman-Fried is arrested" },
-  { date: "2023-03-01", title: "US banking crisis — Silvergate, SVB, and Signature fail" },
-  { date: "2023-06-01", title: "BlackRock files for a spot Bitcoin ETF" },
-  { date: "2024-01-01", title: "SEC approves the first US spot Bitcoin ETFs" },
-  { date: "2024-03-01", title: "Bitcoin breaks its 2021 all-time high" },
-  { date: "2024-04-01", title: "4th Halving (3.125 Bitcoin block reward)", halving: true },
-  { date: "2024-11-01", title: "Trump elected; Bitcoin surges past $100,000" },
-  { date: "2025-01-01", title: "Bitcoin sets a new all-time high near $109,000" }
+  { date: "2017-12-17", title: "Bitcoin reaches a then-record near $19,783" },
+  { date: "2018-12-15", title: "Bear market bottoms near $3,200" },
+  { date: "2019-06-18", title: "Facebook unveils Libra, drawing global regulator scrutiny" },
+  { date: "2020-03-12", title: "WHO declares COVID-19 a worldwide pandemic" },
+  { date: "2020-05-11", title: "3rd Halving (12.5 → 6.25 BTC block reward)", halving: true },
+  { date: "2020-08-11", title: "MicroStrategy announces $250M Bitcoin treasury allocation" },
+  { date: "2020-10-21", title: "PayPal lets US users buy and hold cryptocurrencies" },
+  { date: "2021-02-08", title: "Tesla discloses a $1.5B Bitcoin purchase" },
+  { date: "2021-04-14", title: "Coinbase IPOs on Nasdaq as BTC tags new highs" },
+  { date: "2021-05-12", title: "Tesla suspends Bitcoin payments over energy concerns" },
+  { date: "2021-05-21", title: "China bans Bitcoin mining, triggering a crash" },
+  { date: "2021-09-07", title: "El Salvador adopts Bitcoin as legal tender" },
+  { date: "2021-11-10", title: "Bitcoin reaches its all-time high near $69,000" },
+  { date: "2022-05-09", title: "Terra/Luna stablecoin ecosystem collapses overnight" },
+  { date: "2022-06-13", title: "Celsius freezes withdrawals; Three Arrows Capital fails" },
+  { date: "2022-11-11", title: "FTX implodes and Sam Bankman-Fried is arrested" },
+  { date: "2023-01-21", title: "Ordinals protocol goes live, enabling Bitcoin NFTs" },
+  { date: "2023-03-10", title: "US banking crisis — Silvergate, SVB, and Signature fail" },
+  { date: "2023-06-15", title: "BlackRock files for a spot Bitcoin ETF" },
+  { date: "2024-01-10", title: "SEC approves the first US spot Bitcoin ETFs" },
+  { date: "2024-03-13", title: "Bitcoin breaks its 2021 all-time high (~$73,664)" },
+  { date: "2024-04-19", title: "4th Halving (6.25 → 3.125 BTC block reward)", halving: true },
+  { date: "2024-11-06", title: "Trump elected; Bitcoin surges past $80,000" },
+  { date: "2024-12-05", title: "Bitcoin closes above $100,000 for the first time" },
+  { date: "2025-01-20", title: "Bitcoin sets a new all-time high near $109,000" }
 ];
