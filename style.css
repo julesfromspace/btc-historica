@@ -18,9 +18,17 @@ body {
 #container {
   display: flex;
   flex-direction: column;
+  /* Fallback for browsers without dvh support. */
   height: 100vh;
+  /* Dynamic viewport height tracks the visible area as mobile browser
+     chrome (Safari address bar, Chrome bottom bar) shows/hides, so the
+     chart's x-axis row never gets clipped. */
+  height: 100dvh;
   width: 100vw;
   padding: 24px 24px;
+  /* Respect the iPhone home-bar / Android nav-bar safe area so the
+     x-axis values stay above the OS UI on mobile. */
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
   gap: 24px;
   /* When the sidepanel is open, content shifts right so the chart isn't
      covered. Same timing/curve as the sidepanel slide-in for a unified
@@ -865,3 +873,86 @@ body.sidepanel-open .hint-overlay {
 }
 
 /* Override TradingView crosshair styling — handled in JS, but add subtle touches */
+
+/* ------------------------------------------------------------------------
+   Mobile layout (≤ 640px)
+   - Container padded 16px on both sides.
+   - Navbar stacks vertically: wordmark on top, About link beneath it,
+     then the primary + secondary buttons.
+   - Chart-toggle pinned to the chart's top-right (it would otherwise
+     collide with the stacked header that grows in height).
+   - Sidepanel covers the chart instead of pushing it; close it to see
+     the chart again.
+   - The container's height: 100dvh + padding-bottom: env(safe-area-inset-
+     bottom) (set globally above) keep the x-axis off the browser UI.
+------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  #container {
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    gap: 24px;
+  }
+
+  body.sidepanel-open #container {
+    /* Don't try to fit the chart next to a 340px sidepanel on a 375px
+       screen — let the floating sidepanel overlay the chart instead. */
+    padding-left: 16px;
+  }
+
+  /* Stack header items vertically: wordmark row, About link row,
+     buttons row. */
+  #header {
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+    gap: 8px;
+  }
+
+  /* Brand: enable wrap so the About link drops to its own row beneath
+     the wordmark. */
+  .brand {
+    position: static;
+    transform: none;
+    pointer-events: auto;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .brand-link {
+    flex-basis: 100%;
+    /* Indent under the wordmark (dot 7px + flex gap 10px = 17px). */
+    margin-left: 17px;
+  }
+
+  /* Header actions row sits below the brand in the column flow. */
+  .header-actions {
+    position: static;
+    transform: none;
+  }
+
+  /* Chart-toggle is a child of #chart-wrap in markup. On desktop it's
+     position: fixed and ignores that parent; on mobile we anchor it
+     inside the chart so it doesn't fight with the stacked navbar. */
+  .chart-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    transform: none;
+  }
+
+  /* On mobile the sidepanel takes nearly the full viewport — the 340px
+     desktop width would leave no room for the chart. */
+  .sidepanel {
+    top: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+
+  /* Hide the "Hover the chart…" hint on touch — it can't be acted on. */
+  .hint-overlay {
+    display: none;
+  }
+}
