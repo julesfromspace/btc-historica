@@ -807,7 +807,7 @@ body.sidepanel-open .hint-overlay {
      the card shrink instead of forcing horizontal scroll. */
   width: 560px;
   max-width: calc(100vw - 32px);
-  padding: 24px 28px;
+  padding: 24px 24px;
   /* Soft white blurred glow around the card. */
   box-shadow: 0 0 32px 0 rgba(255, 255, 255, 0.18);
 }
@@ -960,5 +960,12 @@ body.sidepanel-open .hint-overlay {
   /* Hide the "Hover the chart…" hint on touch — it can't be acted on. */
   .hint-overlay {
     display: none;
+  }
+
+  /* Shrink the event-overlay headline so it fits inside the narrower
+     plot area. The JS that sizes the overlay already caps to the
+     chart-wrap's available width, so the box itself can't overflow. */
+  .event-title {
+    font-size: 24px;
   }
 }

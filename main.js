@@ -364,8 +364,12 @@
     // the chart is zoomed in.
     const psWidth = chart.priceScale("right").width();
     const plotWidth = Math.max(0, wrapWidth - psWidth);
-    const dotSize = getCandleWidth();
     const lineMode = chartMode === "line";
+    // On mobile, candle-mode dots get a fixed 8px size so they stay
+    // visible even when the time scale packs many candles per pixel.
+    // Desktop and line mode keep the candle-width-derived size.
+    const isMobile = window.innerWidth <= 640;
+    const dotSize = !lineMode && isMobile ? 8 : getCandleWidth();
     for (const { el, shiftedMonthKey } of eventDots) {
       const x = ts.timeToCoordinate(shiftedMonthKey);
       if (x == null || x < 0 || x > plotWidth) {
@@ -576,7 +580,11 @@
     const GAP = 24; // distance between the overlay and the hover line
     const RIGHT_RESERVED = 64; // leave room for the price-axis label
     const LEFT_EDGE = 8;
-    const MAX_WIDTH = 800;
+    // Cap the overlay to a sensible reading width on desktop (800px),
+    // but never let it spill past the chart's plot area on narrow
+    // screens — leave room for the hover-line gap and price-axis label.
+    const AVAILABLE = wrapWidth - LEFT_EDGE - GAP - RIGHT_RESERVED;
+    const MAX_WIDTH = Math.max(160, Math.min(800, AVAILABLE));
 
     // The overlay must hug the title text exactly — including after wrap —
     // so we measure the longest rendered line of the title via Range rects
