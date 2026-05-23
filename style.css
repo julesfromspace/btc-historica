@@ -802,8 +802,11 @@ body.sidepanel-open .hint-overlay {
   background: #ffffff;
   color: #000000;
   border-radius: 4px;
-  min-width: 480px;
+  /* Cap the card at 560px wide but never exceed the viewport (with a
+     16px breathing margin on each side). On narrow screens this lets
+     the card shrink instead of forcing horizontal scroll. */
   width: 560px;
+  max-width: calc(100vw - 32px);
   padding: 24px 28px;
   /* Soft white blurred glow around the card. */
   box-shadow: 0 0 32px 0 rgba(255, 255, 255, 0.18);
@@ -900,8 +903,10 @@ body.sidepanel-open .hint-overlay {
   }
 
   /* Stack header items vertically: wordmark row, About link row,
-     buttons row. */
+     buttons row. `position: relative` so the chart-toggle (declared
+     below) can anchor to the header's top-right corner. */
   #header {
+    position: relative;
     flex-direction: column;
     align-items: flex-start;
     height: auto;
@@ -930,13 +935,14 @@ body.sidepanel-open .hint-overlay {
     transform: none;
   }
 
-  /* Chart-toggle is a child of #chart-wrap in markup. On desktop it's
-     position: fixed and ignores that parent; on mobile we anchor it
-     inside the chart so it doesn't fight with the stacked navbar. */
+  /* Chart-toggle lives inside the header. On mobile anchor it to the
+     header's top-right so it sits alongside the wordmark row while the
+     About link and primary/secondary buttons stack beneath it. Desktop
+     keeps the original position: fixed (which ignores the DOM parent). */
   .chart-toggle {
     position: absolute;
-    top: 16px;
-    right: 16px;
+    top: 0;
+    right: 0;
     transform: none;
   }
 

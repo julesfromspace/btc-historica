@@ -42,6 +42,22 @@
           <span>Reload</span>
         </button>
       </div>
+      <div id="chart-toggle" class="chart-toggle">
+        <button id="btn-line" class="toggle-btn selected" aria-label="Line chart" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round">
+            <polyline points="3,17 9,11 13,14 21,5" />
+          </svg>
+        </button>
+        <button id="btn-candles" class="toggle-btn" aria-label="Candlestick chart" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <line x1="7" y1="3" x2="7" y2="21" />
+            <rect x="5" y="7" width="4" height="10" />
+            <line x1="17" y1="3" x2="17" y2="21" />
+            <rect x="15" y="10" width="4" height="8" fill="none" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     <aside id="sidepanel" class="sidepanel" aria-hidden="true">
@@ -63,22 +79,6 @@
     <div id="hint" class="hint-overlay">Hover the chart to explore <br> Bitcoin's history</div>
 
     <div id="chart-wrap">
-      <div id="chart-toggle" class="chart-toggle">
-        <button id="btn-line" class="toggle-btn selected" aria-label="Line chart" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-            stroke-linejoin="round">
-            <polyline points="3,17 9,11 13,14 21,5" />
-          </svg>
-        </button>
-        <button id="btn-candles" class="toggle-btn" aria-label="Candlestick chart" type="button">
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-            <line x1="7" y1="3" x2="7" y2="21" />
-            <rect x="5" y="7" width="4" height="10" />
-            <line x1="17" y1="3" x2="17" y2="21" />
-            <rect x="15" y="10" width="4" height="8" fill="none" />
-          </svg>
-        </button>
-      </div>
       <button id="btn-sidepanel" class="icon-btn-tl toggle-btn" aria-label="Toggle sidepanel" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
           stroke-linejoin="round">
