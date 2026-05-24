@@ -1022,37 +1022,38 @@
     else startPlayback();
   });
 
-  // -- Sidepanel: user-suggested events with one-vote-per-user ---------------
-  // Empty by default. Suggestions and votes persist to localStorage so they
-  // survive reload. Voting is per-browser (no backend), and locked to once
-  // per suggestion in either direction.
-  const SUGGESTIONS_KEY = "btc_historica_suggestions_v1";
-  const VOTES_KEY = "btc_historica_votes_v1";
+  // -- Sidepanel: community-suggested events ---------------------------------
+  // Suggestions + votes live in Supabase so the list is shared across every
+  // visitor. Each browser is signed in anonymously on load so it gets a
+  // stable user_id, which the database uses to enforce one-vote-per-user
+  // (a primary key on (suggestion_id, user_id)). Clicking the same arrow
+  // twice removes the vote; clicking the opposite arrow flips it.
+  const SUPABASE_URL = "https://dxaylvkclrpmqaeekrmo.supabase.co";
+  const SUPABASE_ANON_KEY =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4YXlsdmtjbHJwbXFhZWVrcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NjUyMTksImV4cCI6MjA5NTE0MTIxOX0.wBAVc-MWh3suBNtz95U7nc9skCT__2HA0tkyec5QZ7U";
+  const sb =
+    window.supabase && typeof window.supabase.createClient === "function"
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          realtime: { params: { eventsPerSecond: 5 } },
+        })
+      : null;
 
-  function loadJSON(key, fallback) {
-    try {
-      const v = localStorage.getItem(key);
-      return v ? JSON.parse(v) : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-  function saveJSON(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* storage disabled — ignore */
-    }
+  // Client-side profanity guard — a cheap first pass. The hidden-flag in
+  // Supabase is the moderator backstop for anything that slips through.
+  // Edit this list freely to taste.
+  const PROFANITY_LIST = [
+    "fuck", "shit", "bitch", "asshole", "bastard", "dick", "piss",
+    "cunt", "fag", "slut", "whore", "retard", "nigger", "nigga",
+    "kike", "spic", "chink", "gook", "tranny",
+  ];
+  function hasProfanity(text) {
+    const t = text.toLowerCase();
+    return PROFANITY_LIST.some((w) => t.includes(w));
   }
 
-  let suggestions = Array.isArray(loadJSON(SUGGESTIONS_KEY, []))
-    ? loadJSON(SUGGESTIONS_KEY, [])
-    : [];
-  let userVotes = loadJSON(VOTES_KEY, {}) || {};
-
-  function makeId() {
-    return `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-  }
+  let suggestions = [];
+  let userVotes = {};
+  let currentUserId = null;
 
   function renderSuggestions() {
     suggestionList.innerHTML = "";
@@ -1063,7 +1064,9 @@
     suggestionEmpty.classList.add("hidden");
 
     const sorted = [...suggestions].sort(
-      (a, b) => b.score - a.score || b.createdAt - a.createdAt
+      (a, b) =>
+        b.score - a.score ||
+        new Date(b.created_at) - new Date(a.created_at)
     );
 
     for (const s of sorted) {
@@ -1083,7 +1086,6 @@
       upBtn.type = "button";
       upBtn.className = "vote-btn" + (userVote === "up" ? " voted-up" : "");
       upBtn.textContent = "▲";
-      upBtn.disabled = !!userVote;
       upBtn.setAttribute("aria-label", "Upvote");
       upBtn.addEventListener("click", () => vote(s.id, "up"));
 
@@ -1093,9 +1095,9 @@
 
       const downBtn = document.createElement("button");
       downBtn.type = "button";
-      downBtn.className = "vote-btn" + (userVote === "down" ? " voted-down" : "");
+      downBtn.className =
+        "vote-btn" + (userVote === "down" ? " voted-down" : "");
       downBtn.textContent = "▼";
-      downBtn.disabled = !!userVote;
       downBtn.setAttribute("aria-label", "Downvote");
       downBtn.addEventListener("click", () => vote(s.id, "down"));
 
@@ -1105,29 +1107,148 @@
     }
   }
 
-  function vote(id, dir) {
-    if (userVotes[id]) return; // one vote per user, no changes
-    const s = suggestions.find((x) => x.id === id);
-    if (!s) return;
-    s.score += dir === "up" ? 1 : -1;
-    userVotes[id] = dir;
-    saveJSON(SUGGESTIONS_KEY, suggestions);
-    saveJSON(VOTES_KEY, userVotes);
-    renderSuggestions();
+  function showSuggestError(msg) {
+    suggestInput.placeholder = msg;
+    suggestInput.classList.add("suggest-input--error");
+    clearTimeout(showSuggestError._t);
+    showSuggestError._t = setTimeout(() => {
+      suggestInput.placeholder = "Suggest a new event…";
+      suggestInput.classList.remove("suggest-input--error");
+    }, 2200);
   }
 
-  function addSuggestion(rawText) {
-    const text = rawText.trim();
-    if (!text) return;
-    suggestions.push({
-      id: makeId(),
-      text,
-      score: 0,
-      createdAt: Date.now(),
-    });
-    saveJSON(SUGGESTIONS_KEY, suggestions);
+  async function vote(id, dir) {
+    if (!sb || !currentUserId) return;
+    const existing = userVotes[id] || null;
+    const direction = dir === "up" ? 1 : -1;
+
+    // Optimistic local update — real-time will reconcile from the server.
+    const s = suggestions.find((x) => x.id === id);
+    if (existing === dir) {
+      if (s) s.score -= direction;
+      delete userVotes[id];
+    } else if (existing) {
+      const oldDir = existing === "up" ? 1 : -1;
+      if (s) s.score += direction - oldDir;
+      userVotes[id] = dir;
+    } else {
+      if (s) s.score += direction;
+      userVotes[id] = dir;
+    }
     renderSuggestions();
+
+    try {
+      if (existing === dir) {
+        await sb
+          .from("votes")
+          .delete()
+          .match({ suggestion_id: id, user_id: currentUserId });
+      } else if (existing) {
+        await sb
+          .from("votes")
+          .update({ direction })
+          .match({ suggestion_id: id, user_id: currentUserId });
+      } else {
+        await sb
+          .from("votes")
+          .insert({ suggestion_id: id, user_id: currentUserId, direction });
+      }
+    } catch (err) {
+      // On failure, refetch authoritative state.
+      console.error("vote failed", err);
+      loadSuggestionsFromDb();
+    }
   }
+
+  async function addSuggestion(rawText) {
+    if (!sb) return;
+    const text = (rawText || "").trim();
+    if (!text) return;
+    if (hasProfanity(text)) {
+      showSuggestError("Please keep it civil.");
+      return;
+    }
+    const trimmed = text.slice(0, 140);
+    const { error } = await sb
+      .from("suggestions")
+      .insert({ text: trimmed });
+    if (error) {
+      console.error("addSuggestion failed", error);
+      showSuggestError("Could not save — try again.");
+      return;
+    }
+    // Real-time will pick the new row up; nothing more to do here.
+  }
+
+  async function loadSuggestionsFromDb() {
+    if (!sb) return;
+    try {
+      const [{ data: rows, error: rowsErr }, votesRes] = await Promise.all([
+        sb
+          .from("suggestions")
+          .select("id, text, score, created_at")
+          .order("score", { ascending: false })
+          .order("created_at", { ascending: false }),
+        currentUserId
+          ? sb
+              .from("votes")
+              .select("suggestion_id, direction")
+              .eq("user_id", currentUserId)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (rowsErr) throw rowsErr;
+      suggestions = rows || [];
+      userVotes = {};
+      for (const v of votesRes.data || []) {
+        userVotes[v.suggestion_id] = v.direction === 1 ? "up" : "down";
+      }
+      renderSuggestions();
+    } catch (err) {
+      console.error("loadSuggestionsFromDb failed", err);
+    }
+  }
+
+  async function initSuggestionsBackend() {
+    if (!sb) return;
+    // Anonymous sign-in gives each browser a stable user_id we can hang
+    // votes off, while keeping the friction at zero (no email, password,
+    // OAuth flow).
+    const { data: existing } = await sb.auth.getSession();
+    if (existing && existing.session && existing.session.user) {
+      currentUserId = existing.session.user.id;
+    } else {
+      const { data, error } = await sb.auth.signInAnonymously();
+      if (error) {
+        console.error("anonymous sign-in failed", error);
+      } else if (data && data.user) {
+        currentUserId = data.user.id;
+      }
+    }
+
+    await loadSuggestionsFromDb();
+
+    // Real-time: any insert/update on suggestions (including the score
+    // updates fired by the votes trigger) refreshes the panel for every
+    // open tab. Vote rows for the current user keep our own UI state in
+    // sync across devices.
+    sb.channel("suggestions-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "suggestions" },
+        () => loadSuggestionsFromDb()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        (payload) => {
+          const row = payload.new || payload.old;
+          if (row && row.user_id === currentUserId) loadSuggestionsFromDb();
+        }
+      )
+      .subscribe();
+  }
+
+  initSuggestionsBackend();
 
   function autoGrow() {
     suggestInput.style.height = "auto";

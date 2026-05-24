@@ -676,6 +676,17 @@ body.sidepanel-open .hint-overlay {
   color: #555;
 }
 
+/* Briefly applied by JS when an attempted suggestion is rejected (e.g.
+   profanity filter, network error). The error message is shown via the
+   placeholder text — the border tint is the visual cue. */
+.suggest-input--error {
+  border-color: #b85c5c;
+}
+
+.suggest-input--error::placeholder {
+  color: #b85c5c;
+}
+
 .suggest-submit {
   background: #ffffff;
   color: #000;
