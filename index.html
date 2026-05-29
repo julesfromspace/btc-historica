@@ -17,6 +17,10 @@
   <!-- Supabase JS SDK — backs the community-suggestions panel (shared list
        of suggestions + votes across users). Exposes `supabase` globally. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Cloudflare Web Analytics — cookieless, no personal data, no consent
+       banner required. Loaded with `defer` so it never blocks the chart. -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+    data-cf-beacon='{"token": "e4d6884dfad84c5c9a9959a6d9664de1"}'></script>
 </head>
 
 <body>
